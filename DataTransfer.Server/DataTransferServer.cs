@@ -7,17 +7,27 @@ using System.Text;
 
 namespace DataTransfer.Server;
 
-public class DataTransferServer(int port)
+public delegate void OnMessageRequest(Request request, SendResponse sendResponse);
+public delegate bool SendResponse(Response response);
+
+public class DataTransferServer : IDisposable
 {
+    public DataTransferServer(int port)
+    {
+        _port = port;
+        Start();
+    }
+
+    public OnMessageRequest? OnMessageRequestEvent;
     private TcpListener? _tcpListener;
-    private readonly int _port = port;
+    private readonly int _port;
     private volatile bool _working = false;
     private volatile Thread? _thread;
     private readonly Dictionary<long, Client> _clients = [];
     private readonly object _objSenk = new();
     private long _lastClientId = 0;
 
-    public bool Start()
+    private bool Start()
     {
         if (Connect())
         {
@@ -30,7 +40,7 @@ public class DataTransferServer(int port)
             return false;
     }
 
-    public bool Stop()
+    private bool Stop()
     {
         try
         {
@@ -121,17 +131,21 @@ public class DataTransferServer(int port)
                 _clients.Remove(clientId);
     }
 
-    private static void ReceivedRequest(Client client, JObject data)
+    private void ReceivedRequest(Client client, JObject data)
     {
         var request = data.ToObject<Request>();
         if (request is not null)
-            client.SendResponse(new Response(request.Id, $"Request alındı, Response: [{request.RequestData}]..."));
+        {
+            if (OnMessageRequestEvent is not null)
+                OnMessageRequestEvent(request, client.SendResponse);
+        }
     }
 
-    private class Client(DataTransferServer server, Socket clientSocket, long clientId)
+    public void Dispose() => Stop();
+
+    internal class Client(DataTransferServer server, Socket clientSocket, long clientId)
     {
         public long ClientId { get; } = clientId;
-
         private readonly DataTransferServer _server = server;
         private readonly Socket _soket = clientSocket;
         private NetworkStream? _networkStram;
@@ -192,7 +206,7 @@ public class DataTransferServer(int port)
                     string? json = _binaryReader?.ReadString() ?? string.Empty;
                     var messageData = JsonConvert.DeserializeObject<MessageData>(json);
                     if (messageData is not null && messageData.MessageType is MessageType.Request && messageData.Data is JObject jObject)
-                        ReceivedRequest(this, jObject);
+                        _server.ReceivedRequest(this, jObject);
                 }
                 catch
                 {

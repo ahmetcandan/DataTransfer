@@ -4,5 +4,5 @@
 public class Response(Guid requestId, string data)
 {
     public Guid RequestId { get; private set; } = requestId;
-    public string ResponseData { get; set; } = data;
+    public string Data { get; set; } = data;
 }

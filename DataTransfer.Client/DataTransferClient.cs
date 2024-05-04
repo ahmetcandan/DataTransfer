@@ -7,23 +7,35 @@ using System.Text;
 
 namespace DataTransfer.Client;
 
-public delegate void OnMessageResponse(Response response);
-public delegate void OnMessageRequest(Request request);
-
-public class DataTransferClient(string serverIPAddress, int serverPort)
+public class DataTransferClient : IDisposable
 {
+    public DataTransferClient(string serverIPAddress, int serverPort)
+    {
+        _serverIpAddress = serverIPAddress;
+        _serverPort = serverPort;
+        Connect();
+    }
+
+    public DataTransferClient(string serverIPAddress, int serverPort, int timeout)
+    {
+        _serverIpAddress = serverIPAddress;
+        _serverPort = serverPort;
+        _timeoutMiliseconds = timeout;
+        Connect();
+    }
+
     private Socket? _socket;
     private NetworkStream? _networkStream;
     private BinaryWriter? _binaryWriter;
     private BinaryReader? _binaryReader;
     private Thread? _thread;
     private volatile bool _working = false;
-    private readonly string _serverIpAddress = serverIPAddress;
-    private readonly int _serverPort = serverPort;
-    private readonly int _timeoutMiliseconds = 5000;
+    private readonly string _serverIpAddress;
+    private readonly int _serverPort;
+    private readonly int _timeoutMiliseconds = 30000;
     private readonly ResponseQueue _responseQueue = new();
 
-    public bool Connect()
+    private bool Connect()
     {
         try
         {
@@ -44,7 +56,7 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
         }
     }
 
-    public void Disconnected()
+    private void Disconnect()
     {
         try
         {
@@ -118,6 +130,11 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
     {
         var response = data.ToObject<Response>();
         if (response is not null)
-            _responseQueue.PushQueue(response);
+            _responseQueue.PushQueue(response.RequestId ,response);
+    }
+
+    public void Dispose()
+    {
+        Disconnect();
     }
 }
