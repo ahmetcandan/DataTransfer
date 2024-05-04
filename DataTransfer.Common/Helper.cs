@@ -1,9 +1,9 @@
 ﻿using Newtonsoft.Json;
 using System.Text;
 
-namespace DataTransfer.Client;
+namespace DataTransfer.Common;
 
-public class Helper
+public static class Helper
 {
     public static T? DeserializeFromStream<T>(MemoryStream stream)
     {
@@ -22,4 +22,7 @@ public class Helper
         var memoryStream = new MemoryStream(bytes);
         return memoryStream;
     }
+
+    public static string ToJson(this MessageData messageData) => JsonConvert.SerializeObject(messageData);
+    public static MessageData? JsonToMessageData(this string json) => JsonConvert.DeserializeObject<MessageData>(json);
 }

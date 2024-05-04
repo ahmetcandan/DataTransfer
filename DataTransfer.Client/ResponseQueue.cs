@@ -1,4 +1,6 @@
-﻿namespace DataTransfer.Client;
+﻿using DataTransfer.Common;
+
+namespace DataTransfer.Client;
 
 public class ResponseQueue
 {

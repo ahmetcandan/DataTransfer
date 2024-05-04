@@ -1,16 +1,22 @@
 ﻿using System.Net.Sockets;
 using System.Net;
-using DataTransfer.Client;
+using System.Text;
+using Newtonsoft.Json;
+using DataTransfer.Common;
+using Newtonsoft.Json.Linq;
+using System.Threading.Tasks.Dataflow;
 
 namespace DataTransfer.Server;
 
 public class DataTransferServer(int port)
 {
-    private TcpListener? _listenerSocket;
-    private readonly int _port = port;
-    private volatile bool _working = false;
-    private volatile Thread? _thread;
-    DataTransferClient? _client;
+    TcpListener? _tcpListener;
+    readonly int _port = port;
+    volatile bool _working = false;
+    volatile Thread? _thread;
+    readonly Dictionary<long, Client> _clients = [];
+    readonly object _objSenk = new();
+    long _lastClientId = 0;
 
     public bool Start()
     {
@@ -34,7 +40,7 @@ public class DataTransferServer(int port)
             _thread?.Join();
             return true;
         }
-        catch (Exception)
+        catch
         {
             return false;
         }
@@ -44,11 +50,11 @@ public class DataTransferServer(int port)
     {
         try
         {
-            _listenerSocket = new TcpListener(IPAddress.Any, _port);
-            _listenerSocket.Start();
+            _tcpListener = new TcpListener(IPAddress.Any, _port);
+            _tcpListener.Start();
             return true;
         }
-        catch (Exception)
+        catch
         {
             return false;
         }
@@ -58,62 +64,151 @@ public class DataTransferServer(int port)
     {
         try
         {
-            if (_listenerSocket is null)
+            if (_tcpListener is null)
                 return true;
 
-            _listenerSocket.Stop();
-            _listenerSocket = null;
+            _tcpListener.Stop();
+            _tcpListener = null;
             return true;
         }
-        catch (Exception)
+        catch
         {
             return false;
         }
     }
 
-    public void TListen()
+    private void TListen()
     {
         Socket clientSocket;
         while (_working)
         {
             try
             {
-                if (_listenerSocket is not null)
+                if (_tcpListener is not null)
                 {
-                    clientSocket = _listenerSocket.AcceptSocket();
+                    clientSocket = _tcpListener.AcceptSocket();
                     if (clientSocket.Connected)
-                    {
-
-                    }
+                        ClientConnected(clientSocket);
                 }
             }
-            catch (Exception)
+            catch
             {
                 if (_working)
                 {
                     Disconnect();
                     try { Thread.Sleep(1000); }
-                    catch (Exception) { }
+                    catch { }
                     Connect();
                 }
             }
         }
     }
 
-    void OnBeginAccept(IAsyncResult asyncResult)
+    private void ClientConnected(Socket clientSocket)
     {
-        Socket socket = _socket.EndAccept(asyncResult);
-        _client = new(socket);
-
-        _client.OnMessageRequestEvent += new OnMessageRequest(OnReceivedRequest);
-        _client.Start();
-
-        _socket.BeginAccept(OnBeginAccept, null);
+        Client? client = null;
+        lock (_objSenk)
+        {
+            client = new Client(this, clientSocket, ++_lastClientId);
+            _clients.Add(client.ClientId, client);
+        }
+        client?.Start();
     }
 
-    void OnReceivedRequest(Request request)
+    private void ClientDisconnected(long clientId)
     {
-        var response = new Response { ResponseData = "[Response]" + request.RequestData, RequestId = request.Id };
-        _client?.SendResponse(response);
+        if (_working)
+            lock (_objSenk)
+                _clients.Remove(clientId);
+    }
+
+    private static void ReceivedRequest(Client client, JObject data)
+    {
+        var request = data.ToObject<Request>();
+        if (request is not null)
+            client.SendResponse(new Response(request.Id, $"Request alındı, Response: [{request.RequestData}]..."));
+    }
+
+    class Client(DataTransferServer server, Socket clientSocket, long clientId)
+    {
+        public long ClientId { get; } = clientId;
+        readonly DataTransferServer _server = server;
+        readonly Socket _soket = clientSocket;
+        NetworkStream? _networkStram;
+        BinaryReader? _binaryReader;
+        BinaryWriter? _binaryWriter;
+        Thread? _thread;
+        volatile bool _working = false;
+
+        public bool Start()
+        {
+            try
+            {
+                _networkStram = new NetworkStream(_soket);
+                _binaryReader = new BinaryReader(_networkStram, Encoding.BigEndianUnicode);
+                _binaryWriter = new BinaryWriter(_networkStram, Encoding.BigEndianUnicode);
+                _thread = new Thread(new ThreadStart(TRun));
+                _working = true;
+                _thread.Start();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public void Stop()
+        {
+            try
+            {
+                _working = false;
+                _soket.Close();
+                _thread?.Join();
+            }
+            catch { }
+        }
+
+        public bool SendResponse(Response response)
+        {
+            try
+            {
+                _binaryWriter?.Write(MessageData.NewResponse(response).ToJson());
+                _networkStram?.Flush();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void TRun()
+        {
+            while (_working)
+            {
+                try
+                {
+                    string? json = _binaryReader?.ReadString() ?? string.Empty;
+                    var messageData = JsonConvert.DeserializeObject<MessageData>(json);
+                    if (messageData is not null && messageData.MessageType is MessageType.Request && messageData.Data is JObject jObject)
+                        ReceivedRequest(this, jObject);
+                }
+                catch
+                {
+                    break;
+                }
+            }
+            _working = false;
+            try
+            {
+                if (_soket.Connected)
+                {
+                    _soket.Close();
+                }
+            }
+            catch { }
+            _server.ClientDisconnected(ClientId);
+        }
     }
 }

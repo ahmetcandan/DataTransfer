@@ -7,9 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataTransfer.Server", "Data
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataTransfer.Client", "DataTransfer.Client\DataTransfer.Client.csproj", "{9262E735-ED5A-40DC-8F6C-46A029891819}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataTransfer.ClientApp", "DataTransfer.ClientApp\DataTransfer.ClientApp.csproj", "{A9102B7C-CACD-4852-95E6-5F645CF86C87}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataTransfer.ClientApp", "DataTransfer.ClientApp\DataTransfer.ClientApp.csproj", "{A9102B7C-CACD-4852-95E6-5F645CF86C87}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataTransfer.ServerApp", "DataTransfer.ServerApp\DataTransfer.ServerApp.csproj", "{7065EC84-394F-4D66-86A4-715DFD365EEF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataTransfer.ServerApp", "DataTransfer.ServerApp\DataTransfer.ServerApp.csproj", "{7065EC84-394F-4D66-86A4-715DFD365EEF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataTransfer.Common", "DataTransfer.Common\DataTransfer.Common.csproj", "{1CBCCD68-D795-4B64-83D7-B5E7043C4A33}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{7065EC84-394F-4D66-86A4-715DFD365EEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7065EC84-394F-4D66-86A4-715DFD365EEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7065EC84-394F-4D66-86A4-715DFD365EEF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1CBCCD68-D795-4B64-83D7-B5E7043C4A33}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1CBCCD68-D795-4B64-83D7-B5E7043C4A33}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1CBCCD68-D795-4B64-83D7-B5E7043C4A33}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1CBCCD68-D795-4B64-83D7-B5E7043C4A33}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

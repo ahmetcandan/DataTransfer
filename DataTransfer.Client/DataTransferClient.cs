@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using DataTransfer.Common;
+using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
@@ -11,8 +12,6 @@ public delegate void OnMessageRequest(Request request);
 
 public class DataTransferClient(string serverIPAddress, int serverPort)
 {
-    public OnMessageResponse? OnMessageResponseEvent;
-    public OnMessageRequest? OnMessageRequestEvent;
     Socket? _socket;
     NetworkStream? _networkStream;
     BinaryWriter? _binaryWriter;
@@ -21,7 +20,7 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
     volatile bool _working = false;
     readonly string _serverIpAddress = serverIPAddress;
     readonly int _serverPort = serverPort;
-    readonly int _timeoutMiliseconds = 10000;
+    readonly int _timeoutMiliseconds = 5000;
     readonly ResponseQueue _responseQueue = new();
 
     public bool Connect()
@@ -39,7 +38,7 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
             _thread.Start();
             return true;
         }
-        catch (Exception)
+        catch
         {
             return false;
         }
@@ -51,13 +50,15 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
         {
             Thread.Sleep(100);
             _working = false;
+            _responseQueue.Clear();
+            _socket?.Shutdown(SocketShutdown.Both); 
             _socket?.Close();
             _thread?.Join();
+            _binaryReader?.Close();
+            _binaryWriter?.Close();
+            _networkStream?.Close();
         }
-        catch (Exception)
-        {
-
-        }
+        catch { }
     }
 
     private void TRun()
@@ -66,9 +67,10 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
         {
             try
             {
-                var result = _binaryReader?.ReadString() ?? string.Empty;
-                if (!string.IsNullOrEmpty(result))
-                    HandleReceivedData(result);
+                var json = _binaryReader?.ReadString() ?? string.Empty;
+                var messageData = MessageData.JsonToMessageData(json);
+                if (messageData is not null && messageData.MessageType is MessageType.Response && messageData.Data is JObject jObject)
+                    ReceivedResponseHandle(jObject);
             }
             catch
             {
@@ -80,15 +82,14 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
 
     public Response? SendRequest(Request request)
     {
-        var byteArray = Encoding.UTF8.GetBytes('0' + JsonConvert.SerializeObject(request));
-        SendData(byteArray);
+        SendData(MessageData.NewRequest(request));
 
         var timer = new Stopwatch();
         timer.Start();
         while (true)
         {
             if (timer.ElapsedMilliseconds >= _timeoutMiliseconds)
-                return new Response() { ResponseData = "Timeout", RequestId = Guid.Empty };
+                return new Response(Guid.Empty, "Timeout");
 
             var response = _responseQueue.GetResponse(request.Id);
             if (response is not null)
@@ -96,20 +97,14 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
         }
     }
 
-    public void SendResponse(Response response)
-    {
-        var byteArray = Encoding.UTF8.GetBytes('1' + JsonConvert.SerializeObject(response));
-        SendData(byteArray);
-    }
-
-    bool SendData(byte[] data)
+    bool SendData(MessageData messageData)
     {
         try
         {
             if (_binaryWriter is null || _networkStream is null)
                 return false;
 
-            _binaryWriter.Write(data);
+            _binaryWriter.Write(messageData.ToJson());
             _networkStream.Flush();
             return true;
         }
@@ -119,32 +114,10 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
         }
     }
 
-    void HandleReceivedData(string result)
+    void ReceivedResponseHandle(JObject data)
     {
-        var s = result[0];
-        var json = result[1..];
-        if (s == '0' && OnMessageRequestEvent is not null)
-        {
-            try
-            {
-                var request = JsonConvert.DeserializeObject<Request>(json);
-                if (request is not null)
-                    OnMessageRequestEvent(request);
-            }
-            catch { }
-        }
-        else if (s == '1' && OnMessageResponseEvent is not null)
-        {
-            try
-            {
-                var response = JsonConvert.DeserializeObject<Response>(json);
-                if (response is not null)
-                {
-                    _responseQueue.PushQueue(response);
-                    OnMessageResponseEvent(response);
-                }
-            }
-            catch { }
-        }
+        var response = data.ToObject<Response>();
+        if (response is not null)
+            _responseQueue.PushQueue(response);
     }
 }

@@ -6,3 +6,4 @@ dataTransferServer.Start();
 
 Console.ReadLine();
 dataTransferServer.Stop();
+Console.ReadLine();
