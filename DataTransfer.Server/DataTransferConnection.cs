@@ -8,7 +8,7 @@ public class DataTransferConnection(int Port)
     private TcpListener _tcpListener;
     private volatile bool _working = false;
     private volatile Thread _thread;
-    private object objSenk = new object();
+    private readonly object objSenk = new();
     private long _lastClientId = 0;
     private SortedList<long, Client> Clients { get; set; }
 

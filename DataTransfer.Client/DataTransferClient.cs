@@ -12,16 +12,16 @@ public delegate void OnMessageRequest(Request request);
 
 public class DataTransferClient(string serverIPAddress, int serverPort)
 {
-    Socket? _socket;
-    NetworkStream? _networkStream;
-    BinaryWriter? _binaryWriter;
-    BinaryReader? _binaryReader;
-    Thread? _thread;
-    volatile bool _working = false;
-    readonly string _serverIpAddress = serverIPAddress;
-    readonly int _serverPort = serverPort;
-    readonly int _timeoutMiliseconds = 5000;
-    readonly ResponseQueue _responseQueue = new();
+    private Socket? _socket;
+    private NetworkStream? _networkStream;
+    private BinaryWriter? _binaryWriter;
+    private BinaryReader? _binaryReader;
+    private Thread? _thread;
+    private volatile bool _working = false;
+    private readonly string _serverIpAddress = serverIPAddress;
+    private readonly int _serverPort = serverPort;
+    private readonly int _timeoutMiliseconds = 5000;
+    private readonly ResponseQueue _responseQueue = new();
 
     public bool Connect()
     {
@@ -51,7 +51,7 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
             Thread.Sleep(100);
             _working = false;
             _responseQueue.Clear();
-            _socket?.Shutdown(SocketShutdown.Both); 
+            _socket?.Shutdown(SocketShutdown.Both);
             _socket?.Close();
             _thread?.Join();
             _binaryReader?.Close();
@@ -97,7 +97,7 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
         }
     }
 
-    bool SendData(MessageData messageData)
+    private bool SendData(MessageData messageData)
     {
         try
         {
@@ -114,7 +114,7 @@ public class DataTransferClient(string serverIPAddress, int serverPort)
         }
     }
 
-    void ReceivedResponseHandle(JObject data)
+    private void ReceivedResponseHandle(JObject data)
     {
         var response = data.ToObject<Response>();
         if (response is not null)

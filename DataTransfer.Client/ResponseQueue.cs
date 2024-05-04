@@ -4,7 +4,7 @@ namespace DataTransfer.Client;
 
 public class ResponseQueue
 {
-    readonly Dictionary<Guid, Response> _values = [];
+    private readonly Dictionary<Guid, Response> _values = [];
 
     public Response? GetResponse(Guid requestId)
     {

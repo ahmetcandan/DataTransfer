@@ -1,22 +1,21 @@
-﻿using System.Net.Sockets;
-using System.Net;
-using System.Text;
+﻿using DataTransfer.Common;
 using Newtonsoft.Json;
-using DataTransfer.Common;
 using Newtonsoft.Json.Linq;
-using System.Threading.Tasks.Dataflow;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 
 namespace DataTransfer.Server;
 
 public class DataTransferServer(int port)
 {
-    TcpListener? _tcpListener;
-    readonly int _port = port;
-    volatile bool _working = false;
-    volatile Thread? _thread;
-    readonly Dictionary<long, Client> _clients = [];
-    readonly object _objSenk = new();
-    long _lastClientId = 0;
+    private TcpListener? _tcpListener;
+    private readonly int _port = port;
+    private volatile bool _working = false;
+    private volatile Thread? _thread;
+    private readonly Dictionary<long, Client> _clients = [];
+    private readonly object _objSenk = new();
+    private long _lastClientId = 0;
 
     public bool Start()
     {
@@ -129,16 +128,17 @@ public class DataTransferServer(int port)
             client.SendResponse(new Response(request.Id, $"Request alındı, Response: [{request.RequestData}]..."));
     }
 
-    class Client(DataTransferServer server, Socket clientSocket, long clientId)
+    private class Client(DataTransferServer server, Socket clientSocket, long clientId)
     {
         public long ClientId { get; } = clientId;
-        readonly DataTransferServer _server = server;
-        readonly Socket _soket = clientSocket;
-        NetworkStream? _networkStram;
-        BinaryReader? _binaryReader;
-        BinaryWriter? _binaryWriter;
-        Thread? _thread;
-        volatile bool _working = false;
+
+        private readonly DataTransferServer _server = server;
+        private readonly Socket _soket = clientSocket;
+        private NetworkStream? _networkStram;
+        private BinaryReader? _binaryReader;
+        private BinaryWriter? _binaryWriter;
+        private Thread? _thread;
+        private volatile bool _working = false;
 
         public bool Start()
         {
